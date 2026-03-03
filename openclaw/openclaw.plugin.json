@@ -18,8 +18,7 @@
     },
     "datasetIds": {
       "label": "Knowledge Base IDs",
-      "placeholder": "dataset_1,dataset_2",
-      "help": "Comma-separated dataset IDs to search (leave empty to search all)"
+      "help": "Array of dataset IDs to search (leave empty to search all). Configure as YAML array: ['dataset-1', 'dataset-2']"
     },
     "autoInject": {
       "label": "Auto-Inject Context",

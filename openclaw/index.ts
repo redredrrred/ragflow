@@ -84,19 +84,27 @@ class RAGFlowClient {
     const {
       question,
       datasetIds,
-      similarityThreshold = 0.1,
-      topK = 5,
+      similarityThreshold,
+      topK,
     } = params;
 
     const requestBody: Record<string, unknown> = {
       question,
-      similarity_threshold: similarityThreshold,
-      page_size: topK,
     };
 
     // Only include dataset_ids if specified
     if (datasetIds && datasetIds.length > 0) {
       requestBody.dataset_ids = datasetIds;
+    }
+
+    // Only include similarity_threshold if explicitly configured
+    if (similarityThreshold !== undefined) {
+      requestBody.similarity_threshold = similarityThreshold;
+    }
+
+    // Only include top_k if explicitly configured
+    if (topK !== undefined) {
+      requestBody.top_k = topK;
     }
 
     const response = await fetch(`${this.baseUrl}/api/v1/retrieval`, {
@@ -119,6 +127,28 @@ class RAGFlowClient {
     }
 
     return result.data?.chunks || [];
+  }
+
+  /**
+   * Test API connection (called at startup)
+   */
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/v1/datasets`, {
+        method: "GET",
+        headers: this.headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return true;
+    } catch (error) {
+      throw new Error(
+        `RAGFlow connection failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   /**
@@ -175,10 +205,9 @@ const ragflowPlugin = {
         .datasetIds as string[],
       autoInject: ((api.pluginConfig as Record<string, unknown>)
         .autoInject as boolean) ?? true,
-      similarityThreshold: ((api.pluginConfig as Record<string, unknown>)
-        .similarityThreshold as number) ?? 0.1,
-      topK: ((api.pluginConfig as Record<string, unknown>).topK as number) ??
-        5,
+      similarityThreshold: (api.pluginConfig as Record<string, unknown>)
+        .similarityThreshold as number | undefined,
+      topK: (api.pluginConfig as Record<string, unknown>).topK as number | undefined,
     };
 
     // Initialize RAGFlow client
@@ -219,7 +248,7 @@ const ragflowPlugin = {
               question: query,
               datasetIds: cfg.datasetIds,
               similarityThreshold: cfg.similarityThreshold,
-              topK: topK || cfg.topK,
+              topK: topK ?? cfg.topK,
             });
 
             if (chunks.length === 0) {
@@ -404,7 +433,7 @@ const ragflowPlugin = {
             question: event.prompt,
             datasetIds: cfg.datasetIds,
             similarityThreshold: cfg.similarityThreshold,
-            topK: 3, // Limit to top 3 for context
+            topK: cfg.topK,
           });
 
           // Skip if no relevant chunks found
@@ -441,10 +470,19 @@ const ragflowPlugin = {
 
     api.registerService({
       id: "ragflow-knowledge",
-      start: () => {
-        api.logger.info(
-          `ragflow-knowledge: started (API: ${cfg.apiUrl}, auto-inject: ${cfg.autoInject})`,
-        );
+      start: async () => {
+        // Test API connection at startup
+        try {
+          await client.testConnection();
+          api.logger.info(
+            `ragflow-knowledge: started (API: ${cfg.apiUrl}, auto-inject: ${cfg.autoInject})`,
+          );
+        } catch (error) {
+          api.logger.error(
+            `ragflow-knowledge: failed to connect to RAGFlow API: ${error}`,
+          );
+          // Don't throw - allow plugin to start in degraded mode
+        }
       },
       stop: () => {
         api.logger.info("ragflow-knowledge: stopped");

@@ -113,8 +113,8 @@ This means the AI will automatically have access to relevant information without
 | `apiKey` | string | Required | RAGFlow API key |
 | `datasetIds` | array | All datasets | Specific datasets to search |
 | `autoInject` | boolean | `true` | Auto-inject relevant context |
-| `similarityThreshold` | number | `0.1` | Minimum similarity (0-1) |
-| `topK` | number | `5` | Max chunks to retrieve |
+| `similarityThreshold` | number | RAGFlow API default | Minimum similarity (0-1). If not set, RAGFlow API uses its own default |
+| `topK` | number | RAGFlow API default | Max chunks to retrieve. If not set, RAGFlow API uses its own default |
 
 ## RAGFlow Setup
 
